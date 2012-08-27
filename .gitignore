@@ -3,6 +3,11 @@
 *.lo
 *.o
 
+
+*~
+.kdev4/*
+bin/*
+
 # Compiled Dynamic libraries
 *.so
 
