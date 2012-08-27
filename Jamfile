@@ -1,0 +1,14 @@
+SOURCES =
+	main
+	vortexbot
+	;
+
+project vortexbot ;
+
+exe vortexbot
+	#sources
+	: $(SOURCES).cpp
+	: <threading>multi
+	: <linkflags>-lSwiften
+		<linkflags>-lboost_program_options
+	;
