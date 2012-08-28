@@ -28,7 +28,7 @@
 
 int main (int argc, char *argv [])
 {
-	XmppBot::VortexBot *bot = new XmppBot::VortexBot ("config.conf");
+	XmppBot::VortexBot *bot = new XmppBot::VortexBot ("vortexbot.conf");
 	bot->Connect ();
 	return 0;
 }

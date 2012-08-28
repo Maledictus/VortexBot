@@ -46,7 +46,6 @@ namespace XmppBot
 		void Connect ();
 
 		void onConnected ();
-		void onMessageReceived (Swift::Message::ref msg);
-		void onMucJoin (const std::string& str);
+		void onMucJoin (const std::string& room, const std::string& str);
 	};
 }

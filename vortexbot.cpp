@@ -25,6 +25,7 @@
 
 #include <fstream>
 #include <string>
+#include <boost/algorithm/string.hpp>
 #include <Swiften/Swiften.h>
 #include "vortexbot.h"
 
@@ -36,7 +37,7 @@ namespace XmppBot
 		desc.add_options()
 			("login.jid", boost::program_options::value<std::string> ())
 			("login.password", boost::program_options::value<std::string> ())
-			("autojoin.room", boost::program_options::value<std::vector<std::string> >());
+			("autojoin.room", boost::program_options::value<std::string> ());
 		std::ifstream configFile (configFilePath);
 		boost::program_options::store (boost::program_options::parse_config_file (configFile, desc),
 				VM_);
@@ -53,13 +54,19 @@ namespace XmppBot
 		Swift::SimpleEventLoop loop;
 		Swift::BoostNetworkFactories factories (&loop);
 
-		Client_ = new Swift::Client ("jid",
-				"pass",
+		if (!VM_.count ("login.jid") ||
+				!VM_.count ("login.password"))
+		{
+			std::cout << "There is no JID or Password in config file" << std::endl;
+			return;
+		}
+
+		Client_ = new Swift::Client (VM_ ["login.jid"].as<std::string> (),
+				VM_ ["login.password"].as<std::string> (),
 				&factories);
 
 		Client_->setAlwaysTrustCertificates ();
 		Client_->onConnected.connect ([=] () { onConnected (); });
-		Client_->onMessageReceived.connect ([=] (Swift::Message::ref msg) { onMessageReceived (msg); });
 		Client_->connect ();
 
 		loop.run ();
@@ -68,21 +75,32 @@ namespace XmppBot
 	void VortexBot::onConnected ()
 	{
 		std::cout << "connected" << std::endl;
-		MUC_ = Client_->getMUCManager ()->createMUC (Swift::JID ("leechcraft@conference.jabber.ru"));
-		MUC_->joinAs ("maledictus");
-		MUC_->onJoinComplete.connect ([=] (const std::string& str) { onMucJoin (str); });
+		std::vector<std::string> rooms;
+		if (VM_.count ("autojoin.room"))
+		{
+			std::string str = VM_ ["autojoin.room"].as<std::string> ();
+			boost::split (rooms, str, boost::is_any_of (" "));
+		}
+
+		std::for_each (rooms.begin (), rooms.end (),
+				[=] (decltype (rooms.front ()) room)
+				{
+					MUC_ = Client_->getMUCManager ()->
+							createMUC (Swift::JID (room));
+					MUC_->joinAs ("VortexBot");
+					MUC_->onJoinComplete.connect ([=, room] (const std::string& str) { onMucJoin (room, str); });
+				});
 	}
 
-	void VortexBot::onMessageReceived (Swift::Message::ref msg)
+	void VortexBot::onMucJoin (const std::string& room, const std::string& str)
 	{
-		msg->setTo (msg->getFrom ());
-		msg->setFrom(Swift::JID ());
-		Client_->sendMessage (msg);
-	}
-
-	void VortexBot::onMucJoin (const std::string& str)
-	{
-		std::cout << str << std::endl;
+		std::cout << room << " joined" << std::endl;
+// 		Swift::Message::ref msg (new Swift::Message);
+// 		msg->setTo (Swift::JID (room));
+// 		msg->setBody ("Очистим Санктуарий от сил зла!");
+// 		msg->setType (Swift::Message::Groupchat);
+// 		msg->setFrom (Swift::JID ());
+// 		Client_->sendMessage (msg);
 	}
 
 }
