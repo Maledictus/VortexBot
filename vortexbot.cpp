@@ -83,24 +83,81 @@ namespace XmppBot
 		}
 
 		std::for_each (rooms.begin (), rooms.end (),
-				[=] (decltype (rooms.front ()) room)
+				[this] (decltype (rooms.front ()) room)
 				{
-					MUC_ = Client_->getMUCManager ()->
-							createMUC (Swift::JID (room));
-					MUC_->joinAs ("VortexBot");
-					MUC_->onJoinComplete.connect ([=, room] (const std::string& str) { onMucJoin (room, str); });
+					if (!JoinedMucs_.count (room))
+					{
+						Swift::MUC::ref muc = Client_->getMUCManager ()->createMUC (room);
+						JoinedMucs_.insert ({ room, muc });
+						muc->joinAs ("VortexBot");
+						muc->onJoinComplete.connect ([this, room] (const std::string& str)
+							{ onMucJoin (room, str); });
+					}
 				});
 	}
 
 	void VortexBot::onMucJoin (const std::string& room, const std::string& str)
 	{
+		if (!JoinedMucs_.count (room))
+			return;
+
 		std::cout << room << " joined" << std::endl;
-// 		Swift::Message::ref msg (new Swift::Message);
-// 		msg->setTo (Swift::JID (room));
-// 		msg->setBody ("Очистим Санктуарий от сил зла!");
-// 		msg->setType (Swift::Message::Groupchat);
-// 		msg->setFrom (Swift::JID ());
-// 		Client_->sendMessage (msg);
+		auto muc = JoinedMucs_ [room];
+		muc->onOccupantJoined.connect ([this, room] (const Swift::MUCOccupant& occ)
+			{ handleOccupantJoin (occ, room); });
+		muc->onOccupantLeft.connect ([this, room]
+				(const Swift::MUCOccupant& occupant,
+						Swift::MUC::LeavingType type,
+						const std::string& str)
+					{ handleOccupantLeft (occupant, type, str, room); });
+		muc->onOccupantRoleChanged.connect ([this, room]
+				(const std::string& str,
+						const Swift::MUCOccupant& occupant,
+						const Swift::MUCOccupant::Role& role)
+					{ handleOccupantRoleChanged (str, occupant, role, room); });
+	}
+
+	void VortexBot::handleOccupantJoin (const Swift::MUCOccupant& occupant,
+			const std::string& room)
+	{
+		std::cout << occupant.getNick () << " occ joined" << std::endl;
+		if (occupant.getRole () >= Swift::MUCOccupant::Participant)
+		{
+			Swift::Message::ref msg (new Swift::Message);
+			msg->setBody ("Cилы зла стали сильнее.");
+			msg->setType (Swift::Message::Groupchat);
+			msg->setTo (Swift::JID (room));
+			Client_->sendMessage (msg);
+		}
+	}
+
+	void VortexBot::handleOccupantLeft (const Swift::MUCOccupant& occupant,
+			Swift::MUC::LeavingType type, const std::string& str,
+			const std::string& room)
+	{
+		std::cout << occupant.getNick () << " occ left" << std::endl;
+		if (occupant.getRole () >= Swift::MUCOccupant::Participant)
+		{
+			Swift::Message::ref msg (new Swift::Message);
+			msg->setBody ("Cилы зла стали cлабее.");
+			msg->setType (Swift::Message::Groupchat);
+			msg->setTo (Swift::JID (room));
+			Client_->sendMessage (msg);
+		}
+	}
+
+	void VortexBot::handleOccupantRoleChanged (const std::string& str,
+			const Swift::MUCOccupant& occupant,
+			const Swift::MUCOccupant::Role& role, const std::string& room)
+	{
+		std::cout << occupant.getNick () << " occ role changed" << std::endl;
+		Swift::Message::ref msg (new Swift::Message);
+		msg->setType (Swift::Message::Groupchat);
+		msg->setTo (Swift::JID (room));
+		msg->setBody (occupant.getRole () >= Swift::MUCOccupant::Participant ?
+			"Cилы зла стали сильнее." :
+			"Cилы зла стали слабее.");
+		Client_->sendMessage (msg);
 	}
 
 }

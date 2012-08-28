@@ -38,14 +38,25 @@ namespace XmppBot
 	{
 		boost::program_options::variables_map VM_;
 		Swift::Client *Client_;
-		Swift::MUC::ref MUC_;
+		std::map<std::string, Swift::MUC::ref> JoinedMucs_;
 	public:
 		VortexBot (const std::string& configFile);
 		~VortexBot ();
 
 		void Connect ();
 
+	private:
 		void onConnected ();
 		void onMucJoin (const std::string& room, const std::string& str);
+		void handleOccupantJoin (const Swift::MUCOccupant& occupant,
+				const std::string& room);
+		void handleOccupantLeft (const Swift::MUCOccupant& occupant,
+				Swift::MUC::LeavingType type, const std::string& str,
+				const std::string& room);
+		void handleOccupantRoleChanged (const std::string& str,
+				const Swift::MUCOccupant& occupant,
+				const Swift::MUCOccupant::Role& role,
+				const std::string& room);
+
 	};
 }
